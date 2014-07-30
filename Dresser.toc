@@ -1,0 +1,10 @@
+﻿## Interface: 60000
+## Title: Dresser
+## Notes: Adds functionality to the dressing room!
+## Author: Vladinator
+## Version: 6.0.0.140730
+## DefaultState: enabled
+## SavedVariables: 
+
+locale.lua
+core.lua
