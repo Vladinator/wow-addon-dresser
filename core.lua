@@ -113,7 +113,7 @@ Dresser(DressUpFrame, DressUpModel, DressUpFrameResetButton, {
 			if UnitIsPlayer("target") then
 				button.model:SetUnit("target")
 			elseif UnitExists("target") then
-				local guidType, _, _, _, _, creatureID = (":"):split(UnitGUID("target"))
+				local guidType, _, _, _, _, creatureID = ("-"):split(UnitGUID("target"))
 				creatureID = tonumber(creatureID, 16) or 0
 				if guidType == "Player" then
 					button.model:SetUnit("target")

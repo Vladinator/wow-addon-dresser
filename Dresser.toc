@@ -2,7 +2,7 @@
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 6.0.0.140730
+## Version: 6.0.0.141016
 ## DefaultState: enabled
 ## SavedVariables: 
 
