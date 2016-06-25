@@ -1,10 +1,7 @@
-﻿## Interface: 60000
+﻿## Interface: 70000
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 6.0.0.141016
-## DefaultState: enabled
-## SavedVariables: 
-
-locale.lua
+## Version: 7.0.0.160529
+## SavedVariables: Dresser2DB
 core.lua
