@@ -775,8 +775,6 @@ function addon:ADDON_LOADED(event, name)
 	end
 
 	if IS_LEGION and name == "Blizzard_Collections" then
-		local models = WardrobeCollectionFrame.ModelsFrame.Models
-
 		local function dress(...)
 			if SideDressUpFrame.parentFrame and SideDressUpFrame.parentFrame:IsShown() then
 				SideDressUpModel:Undress()
@@ -807,13 +805,19 @@ function addon:ADDON_LOADED(event, name)
 			end
 		end
 
-		for i = 1, #models do
-			local model = models[i]
+		for i = 1, #WardrobeCollectionFrame.ContentFrames do
+			local models = WardrobeCollectionFrame.ContentFrames[i].Models
 
-			model:HookScript("OnMouseDown", onMouseDown)
+			if models then
+				for i = 1, #models do
+					local model = models[i]
+
+					model:HookScript("OnMouseDown", onMouseDown)
+				end
+			end
 		end
 
-		hooksecurefunc("WardrobeCollectionFrameModel_SetTooltip", setTooltip)
+		-- hooksecurefunc("WardrobeCollectionFrameModel_SetTooltip", setTooltip) -- TODO: NYI
 	end
 
 	addon:ScanManifest()
