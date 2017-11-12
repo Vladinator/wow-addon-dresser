@@ -284,7 +284,7 @@ manifest = {
 			},
 			click = function(self)
 				ToggleDropDownMenu(nil, nil, self, "cursor", 0, 0, nil, nil, 86400)
-				PlaySound("igMainMenuOptionCheckBoxOn")
+				PlaySound(856) -- igMainMenuOptionCheckBoxOn
 			end,
 			hide = function(self)
 				if self.buttonDown then
@@ -347,7 +347,7 @@ manifest = {
 					manifest.control.handlers.options.undress(self)
 				end
 
-				PlaySound("gsTitleOptionOK")
+				PlaySound(798) -- gsTitleOptionOK
 			end,
 		},
 	},
