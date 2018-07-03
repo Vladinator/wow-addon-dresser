@@ -2,7 +2,6 @@
 -- TODO: dressup log what slots we equipped and reapply when changing race/gender/target - reset should drop the log and revert to first stage
 
 local addonName, ns = ...
-local IS_LEGION = select(4, GetBuildInfo()) >= 70000
 
 local config = {}
 local manifest
@@ -358,12 +357,16 @@ manifest = {
 		{ faction = 1, id = "Human", race = 1, text = "Human" },
 		{ faction = 1, id = "NightElf", race = 4, text = "Night Elf" },
 		{ faction = 1, id = "Worgen", race = 22, text = "Worgen" },
+		-- { faction = 1, id = "LightforgedDraenei", race = 30, text = "Lightforged Draenei" },
+		-- { faction = 1, id = "VoidElf", race = 29, text = "Void Elf" },
 		{ faction = 2, id = "BloodElf", race = 10, text = "Blood Elf" },
 		{ faction = 2, id = "Goblin", race = 9, text = "Goblin" },
 		{ faction = 2, id = "Orc", race = 2, text = "Orc" },
 		{ faction = 2, id = "Tauren", race = 6, text = "Tauren" },
 		{ faction = 2, id = "Troll", race = 8, text = "Troll" },
 		{ faction = 2, id = "Scourge", race = 5, text = "Undead" },
+		-- { faction = 2, id = "HighmountainTauren", race = 28, text = "Highmountain Tauren" },
+		-- { faction = 2, id = "Nightborne", race = 27, text = "Nightborne" },
 		{ faction = 3, id = "Pandaren", race = 24, text = "Pandaren" },
 	},
 	genders = {
@@ -774,7 +777,7 @@ function addon:ADDON_LOADED(event, name)
 		_G[variable] = config
 	end
 
-	if IS_LEGION and name == "Blizzard_Collections" then
+	if name == "Blizzard_Collections" then
 		local function dress(...)
 			if SideDressUpFrame.parentFrame and SideDressUpFrame.parentFrame:IsShown() then
 				SideDressUpModel:Undress()
