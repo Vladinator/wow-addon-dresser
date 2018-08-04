@@ -2,6 +2,6 @@
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 8.0.0.180630
+## Version: 8.0.1.180804
 ## SavedVariables: DresserDB
 core.lua
