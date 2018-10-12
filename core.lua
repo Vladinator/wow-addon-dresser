@@ -30,13 +30,13 @@ manifest = {
 		handlers = {
 			options = {
 				init = function(self, level)
-					local info = UIDropDownMenu_CreateInfo()
+					local info = Lib_UIDropDownMenu_CreateInfo()
 
 					local parent, model = self:GetParent(), nil
 					if parent then model = parent:GetParent() end
 					if model and type(model.SetModel) ~= "function" then model = nil end
 
-					if UIDROPDOWNMENU_MENU_LEVEL == 1 then
+					if LIB_UIDROPDOWNMENU_MENU_LEVEL == 1 then
 						info.notCheckable = true
 						info.keepShownOnClick = true
 
@@ -48,7 +48,7 @@ manifest = {
 							info.text = "Target gear"
 							info.arg1 = { button = self, model = model, unit = "target" }
 							info.func = manifest.control.handlers.options.gear
-							UIDropDownMenu_AddButton(info, level)
+							Lib_UIDropDownMenu_AddButton(info, level)
 						end
 
 						-- target model (but only on dressup models)
@@ -56,7 +56,7 @@ manifest = {
 							info.text = "Set target"
 							info.arg1 = { button = self, model = model, unit = "target" }
 							info.func = manifest.control.handlers.options.target
-							UIDropDownMenu_AddButton(info, level)
+							Lib_UIDropDownMenu_AddButton(info, level)
 						end
 
 						-- sub levels
@@ -67,12 +67,12 @@ manifest = {
 						-- race
 						info.value = 1
 						info.text = "Race"
-						UIDropDownMenu_AddButton(info, level)
+						Lib_UIDropDownMenu_AddButton(info, level)
 
 						-- gender
 						info.value = 2
 						info.text = "Gender"
-						UIDropDownMenu_AddButton(info, level)
+						Lib_UIDropDownMenu_AddButton(info, level)
 
 						-- can close if buttons below are clicked
 						info.keepShownOnClick = nil
@@ -83,7 +83,7 @@ manifest = {
 							info.text = "Undress"
 							info.arg1 = { model = model }
 							info.func = manifest.control.handlers.options.undress
-							UIDropDownMenu_AddButton(info, level)
+							Lib_UIDropDownMenu_AddButton(info, level)
 						end
 
 						-- no more sub levels
@@ -94,19 +94,19 @@ manifest = {
 							info.text = "Reset"
 							info.arg1 = { model = model }
 							info.func = manifest.control.handlers.options.dress
-							UIDropDownMenu_AddButton(info, level)
+							Lib_UIDropDownMenu_AddButton(info, level)
 						end
 
 						-- close
 						info.arg1 = nil
 						info.text = CLOSE
 						info.func = nil
-						UIDropDownMenu_AddButton(info, level)
+						Lib_UIDropDownMenu_AddButton(info, level)
 
-					elseif UIDROPDOWNMENU_MENU_LEVEL == 2 then
+					elseif LIB_UIDROPDOWNMENU_MENU_LEVEL == 2 then
 						info.keepShownOnClick = true
 
-						if UIDROPDOWNMENU_MENU_VALUE == 1 then
+						if LIB_UIDROPDOWNMENU_MENU_VALUE == 1 then
 							local prevRace
 							local prevAlliedRace
 
@@ -134,7 +134,7 @@ manifest = {
 										info.arg1 = nil
 										info.func = nil
 										info.checked = nil
-										UIDropDownMenu_AddButton(info, level)
+										Lib_UIDropDownMenu_AddButton(info, level)
 									end
 								end
 
@@ -149,7 +149,7 @@ manifest = {
 										info.value = race.alliedLevel
 										info.text = "      " .. race.allied
 										info.checked = nil
-										UIDropDownMenu_AddButton(info, level)
+										Lib_UIDropDownMenu_AddButton(info, level)
 										info.notCheckable = nil
 										info.hasArrow = nil
 										info.value = nil
@@ -165,21 +165,21 @@ manifest = {
 									info.arg1 = { button = self, race = race }
 									info.func = manifest.control.handlers.options.click
 									info.checked = manifest.control.handlers.options.checked
-									UIDropDownMenu_AddButton(info, level)
+									Lib_UIDropDownMenu_AddButton(info, level)
 								end
 							end
 
-						elseif UIDROPDOWNMENU_MENU_VALUE == 2 then
+						elseif LIB_UIDROPDOWNMENU_MENU_VALUE == 2 then
 							for i = 1, #manifest.genders do
 								local gender = manifest.genders[i]
 								info.text = gender.text
 								info.arg1 = { button = self, gender = gender }
 								info.func = manifest.control.handlers.options.click
 								info.checked = manifest.control.handlers.options.checked
-								UIDropDownMenu_AddButton(info, level)
+								Lib_UIDropDownMenu_AddButton(info, level)
 							end
 
-						elseif UIDROPDOWNMENU_MENU_VALUE == 3 then
+						elseif LIB_UIDROPDOWNMENU_MENU_VALUE == 3 then
 							local model = self:GetParent():GetParent()
 							info.notCheckable = true
 
@@ -188,23 +188,23 @@ manifest = {
 								info.text = slot.text
 								info.arg1 = { model = model, slot = slot.slot }
 								info.func = manifest.control.handlers.options.undress
-								UIDropDownMenu_AddButton(info, level)
+								Lib_UIDropDownMenu_AddButton(info, level)
 							end
 						end
 
-					elseif UIDROPDOWNMENU_MENU_LEVEL == 3 then
+					elseif LIB_UIDROPDOWNMENU_MENU_LEVEL == 3 then
 						info.keepShownOnClick = true
 
-						if UIDROPDOWNMENU_MENU_VALUE == 100 or UIDROPDOWNMENU_MENU_VALUE == 200 or UIDROPDOWNMENU_MENU_VALUE == 300 then
+						if LIB_UIDROPDOWNMENU_MENU_VALUE == 100 or LIB_UIDROPDOWNMENU_MENU_VALUE == 200 or LIB_UIDROPDOWNMENU_MENU_VALUE == 300 then
 							for i = 1, #manifest.races do
 								local race = manifest.races[i]
-								if race.alliedLevel == UIDROPDOWNMENU_MENU_VALUE then
+								if race.alliedLevel == LIB_UIDROPDOWNMENU_MENU_VALUE then
 									-- append allied race
 									info.text = race.text
 									info.arg1 = { button = self, race = race }
 									info.func = manifest.control.handlers.options.click
 									info.checked = manifest.control.handlers.options.checked
-									UIDropDownMenu_AddButton(info, level)
+									Lib_UIDropDownMenu_AddButton(info, level)
 								end
 							end
 						end
@@ -325,7 +325,7 @@ manifest = {
 				end,
 			},
 			click = function(self)
-				ToggleDropDownMenu(nil, nil, self, "cursor", 0, 0, nil, nil, 86400)
+				Lib_ToggleDropDownMenu(nil, nil, self, "cursor", 0, 0, nil, nil, 86400)
 				PlaySound(856) -- igMainMenuOptionCheckBoxOn
 			end,
 			hide = function(self)
@@ -565,7 +565,7 @@ end
 
 function addon:UpdateDropdown(button)
 	for i = 2, 3 do
-		local listFrame = _G["DropDownList" .. i]
+		local listFrame = _G["Lib_DropDownList" .. i]
 		if listFrame and listFrame:IsShown() then
 			local numButtons = listFrame.numButtons
 			if numButtons then
@@ -624,7 +624,7 @@ function addon:HookControlFrame(entry)
 	for i = 1, #manifest.control.buttons do
 		local control = manifest.control.buttons[i]
 
-		local button = CreateFrame("Button", "$parent" .. addonName .. i, entry.frame, "ModelControlButtonTemplate" .. (control.options and ", UIDropDownMenuTemplate" or ""))
+		local button = CreateFrame("Button", "$parent" .. addonName .. i, entry.frame, "ModelControlButtonTemplate" .. (control.options and ", Lib_UIDropDownMenuTemplate" or ""))
 		button.entry = entry
 		button.control = control
 
@@ -662,7 +662,7 @@ function addon:HookControlFrame(entry)
 		if control.options then
 			entry.race, entry.gender = addon:GetPlayerInfo()
 			button.Update = manifest.control.handlers.options.update
-			UIDropDownMenu_Initialize(button, manifest.control.handlers.options.init, "MENU")
+			Lib_UIDropDownMenu_Initialize(button, manifest.control.handlers.options.init, "MENU")
 
 			-- hook the model widget
 			local model = button:GetParent():GetParent()
