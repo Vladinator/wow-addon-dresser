@@ -1,8 +1,8 @@
-﻿## Interface: 80000
+﻿## Interface: 80200
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 8.0.1.180901
+## Version: 8.2.0.190908
 ## SavedVariables: DresserDB
 libs\!NoTaint_UIDropDownMenu\LibStub\LibStub.lua
 libs\!NoTaint_UIDropDownMenu\UIDropDownMenu.xml
