@@ -516,7 +516,9 @@ do
 						C_Timer.After(.5, function() addon:INSPECT_READY(event, guid) end)
 					end
 				else
-					DressUpSources(C_TransmogCollection.GetInspectSources())
+					if C_TransmogCollection then
+						DressUpSources(C_TransmogCollection.GetInspectSources())
+					end
 					table.insert(purge, entry)
 				end
 			end
