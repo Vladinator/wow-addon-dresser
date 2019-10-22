@@ -1,2 +1,4 @@
 package-as: Dresser
 enable-nolib-creation: no
+ignore:
+  - .travis.yml
