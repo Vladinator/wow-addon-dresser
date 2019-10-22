@@ -1900,12 +1900,20 @@ function addon:HookControlFrame(entry)
 		local cf = isCustomControlFrame and frame.controlFrame or frame
 		local width = 0
 
-		for _, child in pairs({cf:GetChildren()}) do
-			width = width + child:GetWidth() + .66
+		if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+			if frame == _G.DressUpFrame then
+				cf = nil
+			end
 		end
 
-		if width > 0 then
-			cf:SetWidth(math.max(cf:GetWidth(), width))
+		if cf then
+			for _, child in pairs({cf:GetChildren()}) do
+				width = width + child:GetWidth() + .66
+			end
+
+			if width > 0 then
+				cf:SetWidth(math.max(cf:GetWidth(), width))
+			end
 		end
 	end
 end
@@ -1961,7 +1969,12 @@ function addon:HookLegacyFrame(entry)
 		if entry.side and control.text == "U" then
 			button:SetParent(button.model)
 			button:ClearAllPoints()
-			button:SetPoint("BOTTOM", entry.frame.ResetButton, "TOP", 0, 0)
+
+			if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+				button:SetPoint("TOP", entry.frame.ResetButton, "BOTTOM", 0, 0)
+			else
+				button:SetPoint("BOTTOM", entry.frame.ResetButton, "TOP", 0, 0)
+			end
 
 			button:SetWidth(entry.frame.ResetButton:GetWidth())
 			button:SetText("Undress")
