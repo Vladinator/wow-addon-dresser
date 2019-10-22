@@ -4,6 +4,8 @@
 ## Author: Vladinator
 ## Version: 8.2.5.190929
 ## SavedVariables: DresserDB
+## X-Curse-Project-ID: 7296
+## X-WoWI-ID: 9381
 libs\!NoTaint_UIDropDownMenu\LibStub\LibStub.lua
 libs\!NoTaint_UIDropDownMenu\UIDropDownMenu.xml
 core.lua
