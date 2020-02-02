@@ -1,11 +1,14 @@
-﻿## Interface: 80205
+﻿## Interface: 80300
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 8.2.5.190929
+## Version: 8.3.0.200202
 ## SavedVariables: DresserDB
 ## X-Curse-Project-ID: 7296
 ## X-WoWI-ID: 9381
 libs\!NoTaint_UIDropDownMenu\LibStub\LibStub.lua
 libs\!NoTaint_UIDropDownMenu\UIDropDownMenu.xml
+db_creaturedisplays.lua
+db_creaturemodels.lua
+locale.lua
 core.lua
