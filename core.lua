@@ -2817,5 +2817,56 @@ end
 
 addon:RegisterEvent("ADDON_LOADED")
 
+-- fix the mount and battle pet dress up issue by forcing the old-frame to set the correct creature since we are hiding the new slick blizzard widget
+do
+	local function GetActiveFrames()
+		for i = 1, #manifest.control.frames do
+			local entry = manifest.control.frames[i]
+			local frame = entry.frame
+
+			if type(frame) == "table" and type(frame.GetObjectType) == "function" and frame:IsShown() then
+				local model = frame.DressUpModel
+
+				return frame, model, "Pet", "warrior"
+			end
+		end
+	end
+
+	local function DressUpBattlePet(creatureID, displayID, speciesID)
+		if (not creatureID or creatureID == 0) and (not displayID or displayID == 0) then
+			return
+		end
+		local frame, model, fileName, atlasPostfix = GetActiveFrames()
+		if not model then
+			return
+		end
+		model:SetPosition(0, 0, 0)
+		if displayID and displayID ~= 0 then
+			model:SetDisplayInfo(displayID)
+		else
+			model:SetCreature(creatureID)
+		end
+	end
+
+	local function DressUpMount(mountID)
+		if not mountID or mountID == 0 then
+			return
+		end
+		local creatureDisplayID = C_MountJournal.GetMountInfoExtraByID(mountID)
+		if not creatureDisplayID or creatureDisplayID == 0 then
+			return
+		end
+		local frame, model, fileName, atlasPostfix = GetActiveFrames()
+		if not model then
+			return
+		end
+		model:SetPosition(0, 0, 0)
+		model:SetDisplayInfo(creatureDisplayID)
+	end
+
+	hooksecurefunc("DressUpBattlePet", DressUpBattlePet)
+	hooksecurefunc("DressUpMount", DressUpMount)
+end
+
 if true then return end
 --]=]

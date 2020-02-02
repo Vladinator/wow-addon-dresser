@@ -2,7 +2,7 @@
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 8.3.0.200202
+## Version: 8.3.0.200202b
 ## SavedVariables: DresserDB
 ## X-Curse-Project-ID: 7296
 ## X-WoWI-ID: 9381
