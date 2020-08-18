@@ -85,9 +85,10 @@ class WoWTools {
                     foreach ($v as $x => $y)
                         if ($entry[$y])
                             $emlua[] = $entry[$y];
-                    $elua .= "[\"" . $entry[$k] . "\"]=" . (count($emlua) === 1 ? $emlua[0] : ("{" . implode(",", $emlua) . "}")) . ",";
-                } else {
-                    $elua .= "[\"" . $entry[$k] . "\"]=" . $entry[$v] . ",";
+                    if (is_numeric($entry[$k]))
+                        $elua .= "[" . $entry[$k] . "]=" . (count($emlua) === 1 ? $emlua[0] : ("{" . implode(",", $emlua) . "}")) . ",";
+                } else if (is_numeric($entry[$k])) {
+                    $elua .= "[" . $entry[$k] . "]=" . $entry[$v] . ",";
                 }
             }
             $lua .= "\t" . $elua . "\r\n";
