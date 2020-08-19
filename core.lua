@@ -789,7 +789,7 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 		end,
 	})
 
-	local DUF_CUSTOM = true and addon:CreateModule("DressUpFrame Custom", {
+	local DUF_CUSTOM = false and addon:CreateModule("DressUpFrame Custom", {
 		LibDropDown = LibStub and LibStub("LibDropDown", true),
 		CanLoad = function(self)
 			return self.LibDropDown and type(DressUpFrame) == "table"
@@ -879,7 +879,7 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			for i = 1, #self.Module.Genders do
 				local genderInfo = self.Module.Genders[i]
 				local genderOption = {
-					atlas = "charactercreate-gendericon-" .. genderInfo.atlasGender,
+					atlas = GetAtlasInfo("charactercreate-gendericon-" .. genderInfo.atlasGender) and "charactercreate-gendericon-" .. genderInfo.atlasGender or "AlliedRace-UnlockingFrame-" .. genderInfo.atlasGender, -- TODO: 9.0
 					text = genderInfo.text,
 					args = { genderInfo },
 					func = SetGender,
@@ -900,9 +900,9 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 					if not prevRaceInfo.allied then
 						raceSubMenuOptions = {}
 						raceOptions[#raceOptions + 1] = {
-							isTitle = true,
 							text = raceInfo.allied == 1 and "Alliance Allied Races" or (raceInfo.allied == 2 and "Horde Allied Races" or "Other Races"),
 							menu = raceSubMenuOptions,
+							keepShown = true,
 						}
 					elseif not raceInfo.allied then
 						raceSubMenuOptions = nil
@@ -913,6 +913,7 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 					text = raceInfo.text,
 					args = { raceInfo },
 					func = SetRace,
+					keepShown = true,
 				}
 				if raceSubMenuOptions then
 					raceSubMenuOptions[#raceSubMenuOptions + 1] = raceOption
@@ -928,9 +929,9 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 				Menu:Add(genderOptions[i])
 			end
 			Menu:Add({
-				isTitle = true,
 				text = "Race",
 				menu = raceOptions,
+				keepShown = true,
 			})
 			Menu:Add({
 				text = "Close",
