@@ -99,6 +99,7 @@ end
 -- addon:SetSkinForUnit(unit:string):boolean
 -- addon:GetCurrentSkin():race:string, class:string
 -- addon:SetSkin(race:string, class:string):boolean
+-- addon:ApplyCustomStateToActiveActor(customState:table, doClear:boolean):boolean
 do
 
 	local activeActor = {}
@@ -196,12 +197,16 @@ do
 				actor:Dress()
 			end
 		end
+		return true
 	end
 
 	function addon:ResetActors()
 		local modelScene, model = GetActiveFrame()
 		if modelScene then
-			return ResetActors(modelScene)
+			if ResetActors(modelScene) ~= false then
+				addon:ClearCustomState()
+			end
+			return true
 		end
 		return false
 	end
@@ -229,7 +234,10 @@ do
 	function addon:ResetActiveActor()
 		local modelScene, model = GetActiveFrame()
 		if modelScene then
-			return ResetActiveActor(modelScene)
+			if ResetActiveActor(modelScene) ~= false then
+				addon:ClearCustomState()
+			end
+			return true
 		end
 		return false
 	end
@@ -432,8 +440,12 @@ do
 	function addon:SetUnit(unit)
 		local modelScene, model = GetActiveFrame()
 		if modelScene then
-			return SetUnitModelScene(modelScene, unit)
+			if SetUnitModelScene(modelScene, unit) ~= false then
+				addon:ClearCustomState()
+				return true
+			end
 		elseif model then
+			addon:ClearCustomState()
 			return SetUnitModel(model, unit)
 		end
 		return false
@@ -514,6 +526,71 @@ do
 		return false
 	end
 
+	local function GetGenderRaceIDs(gender, race)
+		local genderId = gender and gender.id or UnitSex("player")
+		local raceId = race and race.id or select(2, UnitRace("player"))
+		return genderId, raceId, gender, race
+	end
+
+	local function ApplyGenderRaceToActiveActor(modelScene, genderInfo, raceInfo)
+		local success = 0
+		for tag, actor in pairs(modelScene.tagToActor) do
+			if actor:IsShown() then
+				-- actor:SetCustomRace(raceInfo.race, genderInfo.gender)
+				success = success + 1
+			end
+		end
+		return success > 0
+	end
+
+	local function ApplyGenderRaceToModel(model, genderInfo, raceInfo)
+		return model:SetCustomRace(raceInfo.race, genderInfo.gender)
+	end
+
+	function addon:ApplyCustomStateToActiveActor(customState, doClear)
+		local gender = customState.gender
+		local race = customState.race
+		if not gender and not race and not doClear then
+			return false
+		end
+		local _, _, genderInfo, raceInfo = GetGenderRaceIDs(gender, race)
+		if not genderInfo or not raceInfo then
+			return false
+		end
+		local modelScene, model = GetActiveFrame()
+		if modelScene then
+			return ApplyGenderRaceToActiveActor(modelScene, genderInfo, raceInfo)
+		elseif model then
+			return ApplyGenderRaceToModel(model, genderInfo, raceInfo)
+		end
+		return false
+	end
+
+end
+
+-- addon:ClearCustomState():boolean
+-- addon:SetCustomGender(gender:table):boolean
+-- addon:SetCustomRace(race:table):boolean
+do
+
+	local customState = {}
+
+	function addon:ClearCustomState()
+		customState.gender = nil
+		customState.race = nil
+		return addon:ApplyCustomStateToActiveActor(customState, true)
+	end
+
+	function addon:SetCustomGender(gender)
+		customState.gender = gender
+		return addon:ApplyCustomStateToActiveActor(customState)
+	end
+
+	function addon:SetCustomRace(race)
+		customState.race = race
+		return addon:ApplyCustomStateToActiveActor(customState)
+	end
+
 end
 
 -- addon.UI.Resize.Update(frame:table)
@@ -547,9 +624,6 @@ do
 				addon:UndressActorsSlot(INVSLOT_HEAD)
 				addon:UndressActorsSlot(INVSLOT_BACK)
 				addon:UndressActorsSlot(INVSLOT_TABARD)
-				--addon:UndressSlot(INVSLOT_HEAD)
-				--addon:UndressSlot(INVSLOT_BACK)
-				--addon:UndressSlot(INVSLOT_TABARD)
 			else
 				addon:UndressActors()
 				addon:Undress()
@@ -562,8 +636,8 @@ do
 			frame:HookScript("OnClick", function(...) UI.Reset.Click(...) end)
 		end,
 		Click = function(frame, button)
-			addon:ResetActors()
 			addon:ResetActiveActor()
+			addon:ResetActors()
 		end,
 	}
 
@@ -715,7 +789,7 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 		end,
 	})
 
-	local DUF_CUSTOM = false and addon:CreateModule("DressUpFrame Custom", {
+	local DUF_CUSTOM = true and addon:CreateModule("DressUpFrame Custom", {
 		LibDropDown = LibStub and LibStub("LibDropDown", true),
 		CanLoad = function(self)
 			return self.LibDropDown and type(DressUpFrame) == "table"
@@ -727,51 +801,8 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 				self:SetPoint("RIGHT", DUF_TARGET.Widgets[1].Frame, "LEFT", 0, 0)
 				hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
-				self.Module.Races = {
-					-- Alliance Races
-					{ faction = 1, id = "Draenei", race = 11, text = "Draenei" },
-					{ faction = 1, id = "Dwarf", race = 3, text = "Dwarf" },
-					{ faction = 1, id = "Gnome", race = 7, text = "Gnome" },
-					{ faction = 1, id = "Human", race = 1, text = "Human" },
-					{ faction = 1, id = "NightElf", race = 4, text = "Night Elf" },
-					{ faction = 1, id = "Worgen", race = 22, text = "Worgen" },
-					-- Alliance Allied Races
-					{ faction = 1, id = "DarkIronDwarf", race = 34, text = "Dark Iron Dwarf", allied = "Allied Races", alliedLevel = 100 },
-					{ faction = 1, id = "KulTiran", race = 32, text = "Kul Tiran", allied = "Allied Races", alliedLevel = 100 },
-					{ faction = 1, id = "LightforgedDraenei", race = 30, text = "Lightforged Draenei", allied = "Allied Races", alliedLevel = 100 },
-					{ faction = 1, id = "VoidElf", race = 29, text = "Void Elf", allied = "Allied Races", alliedLevel = 100 },
-					-- Horde Races
-					{ faction = 2, id = "BloodElf", race = 10, text = "Blood Elf" },
-					{ faction = 2, id = "Goblin", race = 9, text = "Goblin" },
-					{ faction = 2, id = "Orc", race = 2, text = "Orc" },
-					{ faction = 2, id = "Tauren", race = 6, text = "Tauren" },
-					{ faction = 2, id = "Troll", race = 8, text = "Troll" },
-					{ faction = 2, id = "Scourge", race = 5, text = "Undead" },
-					-- Horde Allied Races
-					{ faction = 2, id = "HighmountainTauren", race = 28, text = "Highmountain Tauren", allied = "Allied Races", alliedLevel = 200 },
-					{ faction = 2, id = "MagharOrc", race = 36, text = "Mag'har Orc", allied = "Allied Races", alliedLevel = 200 },
-					{ faction = 2, id = "Nightborne", race = 27, text = "Nightborne", allied = "Allied Races", alliedLevel = 200 },
-					{ faction = 2, id = "ZandalariTroll", race = 31, text = "Zandalari Troll", allied = "Allied Races", alliedLevel = 200 },
-					-- Neutral
-					{ faction = 3, id = "Pandaren", race = 24, text = "Pandaren" },
-					-- Other Races
-					-- { faction = 3, id = "FelOrc", race = 12, text = "Fel Orc", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Naga_", race = 13, text = "Naga", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Broken", race = 14, text = "Broken", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Skeleton", race = 15, text = "Skeleton", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Vrykul", race = 16, text = "Vrykul", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Tuskarr", race = 17, text = "Tuskarr", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "ForestTroll", race = 18, text = "Forest Troll", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Taunka", race = 19, text = "Taunka", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "NorthrendSkeleton", race = 20, text = "Northrend Skeleton", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "IceTroll", race = 21, text = "Ice Troll", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "ThinHuman", race = 33, text = "Thin Human", allied = "Other Races", alliedLevel = 300 },
-					-- { faction = 3, id = "Vulpera", race = 35, text = "Vulpera", allied = "Other Races", alliedLevel = 300 },
-				}
-				self.Module.Genders = {
-					{ id = 2, gender = 0, text = "Male" },
-					{ id = 3, gender = 1, text = "Female" },
-				}
+				self.Module.ActiveGender = self.Module.Genders[1]
+				self.Module.ActiveRace = self.Module.Races[1]
 				self.Module.CreateMenu(self)
 			end,
 			OnShow = function(self)
@@ -784,6 +815,54 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 		Widgets = {
 			{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
 		},
+		Genders = {
+			{ id = 2, gender = 0, text = "Male", atlasGender = "male" },
+			{ id = 3, gender = 1, text = "Female", atlasGender = "female" },
+		},
+		Races = {
+			-- Alliance Races
+			{ faction = 1, id = "Draenei", race = 11, text = "Draenei", atlasRace = "draenei" },
+			{ faction = 1, id = "Dwarf", race = 3, text = "Dwarf", atlasRace = "dwarf" },
+			{ faction = 1, id = "Gnome", race = 7, text = "Gnome", atlasRace = "gnome" },
+			{ faction = 1, id = "Human", race = 1, text = "Human", atlasRace = "human" },
+			{ faction = 1, id = "NightElf", race = 4, text = "Night Elf", atlasRace = "nightelf" },
+			{ faction = 1, id = "Worgen", race = 22, text = "Worgen", atlasRace = "worgen" },
+			-- Alliance Allied Races
+			{ faction = 1, id = "DarkIronDwarf", race = 34, text = "Dark Iron Dwarf", atlasRace = "darkirondwarf", allied = 1 },
+			{ faction = 1, id = "KulTiran", race = 32, text = "Kul Tiran", atlasRace = "kultiran", allied = 1 },
+			{ faction = 1, id = "LightforgedDraenei", race = 30, text = "Lightforged Draenei", atlasRace = "lightforged", allied = 1 },
+			{ faction = 1, id = "VoidElf", race = 29, text = "Void Elf", atlasRace = "voidelf", allied = 1 },
+			{ faction = 1, id = "Mechagnome", race = 37, text = "Mechagnome", atlasRace = "mechagnome", allied = 1 },
+			-- Horde Races
+			{ faction = 2, id = "BloodElf", race = 10, text = "Blood Elf", atlasRace = "bloodelf" },
+			{ faction = 2, id = "Goblin", race = 9, text = "Goblin", atlasRace = "goblin" },
+			{ faction = 2, id = "Orc", race = 2, text = "Orc", atlasRace = "orc" },
+			{ faction = 2, id = "Tauren", race = 6, text = "Tauren", atlasRace = "tauren" },
+			{ faction = 2, id = "Troll", race = 8, text = "Troll", atlasRace = "troll" },
+			{ faction = 2, id = "Scourge", race = 5, text = "Undead", atlasRace = "undead" },
+			-- Horde Allied Races
+			{ faction = 2, id = "HighmountainTauren", race = 28, text = "Highmountain Tauren", atlasRace = "highmountain", allied = 2 },
+			{ faction = 2, id = "MagharOrc", race = 36, text = "Mag'har Orc", atlasRace = "magharorc", allied = 2 },
+			{ faction = 2, id = "Nightborne", race = 27, text = "Nightborne", atlasRace = "nightborne", allied = 2 },
+			{ faction = 2, id = "ZandalariTroll", race = 31, text = "Zandalari Troll", atlasRace = "zandalari", allied = 2 },
+			{ faction = 3, id = "Vulpera", race = 35, text = "Vulpera", atlasRace = "vulpera", allied = 2 },
+			-- Neutral
+			{ faction = 3, id = "Pandaren", race = 24, text = "Pandaren", atlasRace = "pandaren" },
+			-- Other Races
+			-- { faction = 3, id = "FelOrc", race = 12, text = "Fel Orc", allied = 3 },
+			-- { faction = 3, id = "Naga_", race = 13, text = "Naga", allied = 3 },
+			-- { faction = 3, id = "Broken", race = 14, text = "Broken", allied = 3 },
+			-- { faction = 3, id = "Skeleton", race = 15, text = "Skeleton", allied = 3 },
+			-- { faction = 3, id = "Vrykul", race = 16, text = "Vrykul", allied = 3 },
+			-- { faction = 3, id = "Tuskarr", race = 17, text = "Tuskarr", allied = 3 },
+			-- { faction = 3, id = "ForestTroll", race = 18, text = "Forest Troll", allied = 3 },
+			-- { faction = 3, id = "Taunka", race = 19, text = "Taunka", allied = 3 },
+			-- { faction = 3, id = "NorthrendSkeleton", race = 20, text = "Northrend Skeleton", allied = 3 },
+			-- { faction = 3, id = "IceTroll", race = 21, text = "Ice Troll", allied = 3 },
+			-- { faction = 3, id = "ThinHuman", race = 33, text = "Thin Human", allied = 3 },
+		},
+		ActiveGender = nil,
+		ActiveRace = nil,
 		CreateMenu = function(self)
 			local function SetGender(_, _, genderInfo)
 				return self.Module.SetGender(self, genderInfo)
@@ -794,33 +873,77 @@ if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			local Menu = self.Module.LibDropDown:NewButton(self, addonName .. "DressUpFrameDropDownMenuButton")
 			Menu:SetStyle("MENU")
 			Menu:SetAnchor("BOTTOMLEFT", self, "TOPLEFT", 10, 10)
+			local genderOptions = {}
+			local raceOptions = {}
+			local raceSubMenuOptions
 			for i = 1, #self.Module.Genders do
 				local genderInfo = self.Module.Genders[i]
-				Menu:Add({
-					-- atlas = option.iconAtlas,
+				local genderOption = {
+					atlas = "charactercreate-gendericon-" .. genderInfo.atlasGender,
 					text = genderInfo.text,
-					-- disabled = false,
 					args = { genderInfo },
 					func = SetGender,
-				})
+					keepShown = true,
+				}
+				genderOptions[#genderOptions + 1] = genderOption
 			end
 			for i = 1, #self.Module.Races do
+				local prevRaceInfo = self.Module.Races[i - 1]
 				local raceInfo = self.Module.Races[i]
-				Menu:Add({
-					-- atlas = option.iconAtlas,
+				if not prevRaceInfo or (raceInfo.faction ~= prevRaceInfo.faction) then
+					raceOptions[#raceOptions + 1] = {
+						isTitle = true,
+						text = raceInfo.faction == 1 and "Alliance" or (raceInfo.faction == 2 and "Horde" or "Neutral"),
+					}
+				end
+				if prevRaceInfo and raceInfo.allied ~= prevRaceInfo.allied then
+					if not prevRaceInfo.allied then
+						raceSubMenuOptions = {}
+						raceOptions[#raceOptions + 1] = {
+							isTitle = true,
+							text = raceInfo.allied == 1 and "Alliance Allied Races" or (raceInfo.allied == 2 and "Horde Allied Races" or "Other Races"),
+							menu = raceSubMenuOptions,
+						}
+					elseif not raceInfo.allied then
+						raceSubMenuOptions = nil
+					end
+				end
+				local raceOption = {
+					atlas = "raceicon-" .. raceInfo.atlasRace .. "-male",
 					text = raceInfo.text,
-					-- disabled = false,
 					args = { raceInfo },
 					func = SetRace,
-				})
+				}
+				if raceSubMenuOptions then
+					raceSubMenuOptions[#raceSubMenuOptions + 1] = raceOption
+				else
+					raceOptions[#raceOptions + 1] = raceOption
+				end
 			end
+			Menu:Add({
+				isTitle = true,
+				text = "Gender",
+			})
+			for i = 1, #genderOptions do
+				Menu:Add(genderOptions[i])
+			end
+			Menu:Add({
+				isTitle = true,
+				text = "Race",
+				menu = raceOptions,
+			})
+			Menu:Add({
+				text = "Close",
+			})
 			self.Module.Menu = Menu
 		end,
 		SetGender = function(self, genderInfo)
-			print(self.Module, "SetGender", genderInfo.id, "") -- DEBUG
+			self.Module.ActiveGender = genderInfo
+			addon:SetCustomGender(genderInfo)
 		end,
 		SetRace = function(self, raceInfo)
-			print(self.Module, "SetRace", raceInfo.id, "") -- DEBUG
+			self.Module.ActiveRace = raceInfo
+			addon:SetCustomRace(raceInfo)
 		end,
 		ToggleMenu = function(self)
 			self.Module.Menu:Toggle()
