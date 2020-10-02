@@ -2,6 +2,7 @@
 Documentation for the [Menu](Menu) object.
 Created with [LibDropDown:NewMenu()](LibDropDown#libdropdownnewmenuparent-name).
 --]]
+local GetAtlasInfo = _G.GetAtlasInfo or _G.C_Texture.GetAtlasInfo
 local lib = LibStub('LibDropDown')
 
 local function OnShow(self)
@@ -165,6 +166,12 @@ function menuMixin:UpdateLine(index, data)
 		if(data.atlas) then
 			local exists, atlasWidth, atlasHeight = GetAtlasInfo(data.atlas)
 			assert(exists, 'No atlas \'' .. data.atlas .. '\' exists')
+
+			if type(exists) == "table" then
+				atlasWidth = exists.width
+				atlasHeight = exists.height
+				exists = true
+			end
 
 			local width = data.atlasWidth
 			local height = data.atlasHeight
