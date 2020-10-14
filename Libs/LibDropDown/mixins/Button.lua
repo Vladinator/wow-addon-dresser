@@ -25,12 +25,6 @@ local function OnClick(self)
 	PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 end
 
-local function OnShow(self)
-	if(not self.Menu) then
-		self.Menu = lib:NewMenu(self)
-	end
-end
-
 local function OnHide()
 	lib:CloseAll()
 end
@@ -170,9 +164,8 @@ function lib:NewButton(parent, name)
 
 	local Button = Mixin(CreateFrame('Frame', (name or parent:GetDebugName() .. 'MenuButton'), parent), buttonMixin, CallbackRegistryBaseMixin or CallbackRegistryMixin)
 	Button:SetSize(165, 32)
-	Button:SetScript('OnShow', OnShow)
-	OnShow(Button) -- TODO: fixes nil error when calling Menu:SetStyle("MENU") from the example
 	Button:SetScript('OnHide', OnHide)
+	Button.Menu = lib:NewMenu(Button)
 
 	local Left = Button:CreateTexture('$parentLeft', 'ARTWORK')
 	Left:SetPoint('TOPLEFT', 0, 17)
