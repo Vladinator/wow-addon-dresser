@@ -1,3 +1,5 @@
+if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
+
 local addonName, ns = ...
 local addon = CreateFrame("Frame")
 
@@ -90,6 +92,7 @@ end
 -- addon:ResetActiveActor():boolean
 -- addon:TryOn(item:string):boolean
 -- addon:DressUpSources(appearanceSources:table, mainHandEnchant:number, offHandEnchant:number):boolean
+-- addon:DressUpTransmogInfoList(itemTransmogInfoList:table):boolean
 -- addon:UndressActors():boolean
 -- addon:UndressActorsSlot(index:number):boolean
 -- addon:Undress():boolean
@@ -293,6 +296,43 @@ do
 			return DressUpSourcesModelScene(modelScene, appearanceSources, ...)
 		elseif model then
 			return DressUpSources(appearanceSources, ...)
+		end
+		return false
+	end
+
+	local function DressUpTransmogInfoList(modelType, modelScene, itemTransmogInfoList)
+		local appearanceSources = {}
+		local mainHandEnchant
+		local offHandEnchant
+		local mainHandSlotID = GetInventorySlotInfo("MAINHANDSLOT")
+		local secondaryHandSlotID = GetInventorySlotInfo("SECONDARYHANDSLOT")
+		for slotID, transmogInfo in pairs(itemTransmogInfoList) do
+			if transmogInfo then
+				appearanceSources[slotID] = transmogInfo.appearanceID
+				if slotID == mainHandSlotID then
+					mainHandEnchant = transmogInfo.illusionID
+				elseif slotID == secondaryHandSlotID then
+					offHandEnchant = transmogInfo.illusionID
+				end
+			end
+		end
+		if modelType == 1 then
+			return DressUpSourcesModelScene(modelScene, appearanceSources, mainHandEnchant, offHandEnchant)
+		elseif modelType == 2 then
+			return DressUpSources(appearanceSources, mainHandEnchant, offHandEnchant)
+		end
+		return false
+	end
+
+	function addon:DressUpTransmogInfoList(itemTransmogInfoList, ...)
+		if not itemTransmogInfoList then
+			return false
+		end
+		local modelScene, model = GetActiveFrame()
+		if modelScene then
+			return DressUpTransmogInfoList(1, modelScene, itemTransmogInfoList, ...)
+		elseif model then
+			return DressUpTransmogInfoList(2, model, itemTransmogInfoList, ...)
 		end
 		return false
 	end
@@ -593,7 +633,8 @@ do
 
 end
 
--- addon.UI.Resize.Update(frame:table)
+-- addon.UI.Resize.IsExpanded(frame:table)
+-- addon.UI.Resize.Update(parent:table, frame:table)
 -- addon.UI.Undress.Setup(frame:table)
 -- addon.UI.Undress.Click(frame:table)
 -- addon.UI.Reset.Setup(frame:table)
@@ -604,8 +645,11 @@ do
 	addon.UI = UI
 
 	UI.Resize = {
+		IsExpanded = function(parent)
+			return GetCVar(parent.MaxMinButtonFrame.cvar) == "0"
+		end,
 		Update = function(parent, frame)
-			if GetCVar(parent.MaxMinButtonFrame.cvar) == "0" then
+			if UI.Resize.IsExpanded(parent) then
 				frame:SetWidth(frame.Size or 60)
 				frame:SetText(frame.Text or frame.TextShort)
 			else
@@ -643,315 +687,339 @@ do
 
 end
 
-if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-
-	local SDUF_UNDRESS = addon:CreateModule("SideDressUpFrame Undress", {
-		CanLoad = function()
-			return type(SideDressUpFrame) == "table"
+local SDUF_UNDRESS = addon:CreateModule("SideDressUpFrame Undress", {
+	CanLoad = function()
+		return type(SideDressUpFrame) == "table"
+	end,
+	Handlers = {
+		OnLoad = function(self)
+			self:SetText(ns.L.UNDRESS)
+			self:SetSize(SideDressUpFrame.ResetButton:GetSize())
+			self:SetPoint("BOTTOM", SideDressUpFrame.ResetButton, "TOP", 0, 0)
+			SideDressUpFrame.ModelScene:SetPoint("BOTTOMRIGHT", -11, 40 + self:GetHeight() - 4)
+			addon.UI.Undress.Setup(self)
+			addon.UI.Reset.Setup(SideDressUpFrame.ResetButton)
 		end,
-		Handlers = {
-			OnLoad = function(self)
-				self:SetText(ns.L.UNDRESS)
-				self:SetSize(SideDressUpFrame.ResetButton:GetSize())
-				self:SetPoint("BOTTOM", SideDressUpFrame.ResetButton, "TOP", 0, 0)
-				SideDressUpFrame.ModelScene:SetPoint("BOTTOMRIGHT", -11, 40 + self:GetHeight() - 4)
-				addon.UI.Undress.Setup(self)
-				addon.UI.Reset.Setup(SideDressUpFrame.ResetButton)
-			end,
-			OnClick = function(self, button)
-				addon.UI.Undress.Click(self, button)
-			end,
-		},
-		Widgets = {
-			{ type = "Button", parent = "SideDressUpFrame", template = "UIPanelButtonTemplate" },
-		},
-	})
-
-	local DUF_UNDRESS = addon:CreateModule("DressUpFrame Undress", {
-		CanLoad = function()
-			return type(DressUpFrame) == "table"
+		OnClick = function(self, button)
+			addon.UI.Undress.Click(self, button)
 		end,
-		Handlers = {
-			OnLoad = function(self)
-				self.Text = ns.L.UNDRESS
-				self.TextShort = ns.L.UNDRESS_SHORT
-				self:SetPoint("RIGHT", DressUpFrame.ResetButton, "LEFT", 0, 0)
-				hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
-				addon.UI.Undress.Setup(self)
-				addon.UI.Reset.Setup(DressUpFrame.ResetButton)
-			end,
-			OnShow = function(self)
-				addon.UI.Resize.Update(DressUpFrame, self)
-			end,
-			OnClick = function(self, button)
-				addon.UI.Undress.Click(self, button)
-			end,
-		},
-		Widgets = {
-			{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
-		},
-	})
+	},
+	Widgets = {
+		{ type = "Button", parent = "SideDressUpFrame", template = "UIPanelButtonTemplate" },
+	},
+})
 
-	local DUF_INSPECT = addon:CreateModule("DressUpFrame Inspect", {
-		CanLoad = function()
-			return type(DressUpFrame) == "table"
+local DUF_UNDRESS = addon:CreateModule("DressUpFrame Undress", {
+	CanLoad = function()
+		return type(DressUpFrame) == "table"
+	end,
+	Handlers = {
+		OnLoad = function(self)
+			self.Text = ns.L.UNDRESS
+			self.TextShort = ns.L.UNDRESS_SHORT
+			self:SetPoint("RIGHT", DressUpFrame.ResetButton, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+			addon.UI.Undress.Setup(self)
+			addon.UI.Reset.Setup(DressUpFrame.ResetButton)
 		end,
-		Events = {
-			"PLAYER_TARGET_CHANGED",
-			"INSPECT_READY",
-		},
-		Handlers = {
-			OnLoad = function(self)
-				self.Text = ns.L.INSPECT
-				self.TextShort = ns.L.INSPECT_SHORT
-				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-				self:SetPoint("RIGHT", DUF_UNDRESS.Widgets[1].Frame, "LEFT", 0, 0)
-				hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
-			end,
-			OnShow = function(self)
-				addon.UI.Resize.Update(DressUpFrame, self)
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+		end,
+		OnClick = function(self, button)
+			addon.UI.Undress.Click(self, button)
+		end,
+	},
+	Widgets = {
+		{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
+	},
+})
+
+local DUF_INSPECT = addon:CreateModule("DressUpFrame Inspect", {
+	CanLoad = function()
+		return type(DressUpFrame) == "table"
+	end,
+	Events = {
+		"PLAYER_TARGET_CHANGED",
+		"INSPECT_READY",
+	},
+	Handlers = {
+		OnLoad = function(self)
+			self.Text = ns.L.INSPECT
+			self.TextShort = ns.L.INSPECT_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_UNDRESS.Widgets[1].Frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.Module.UpdateButtonState(self)
+		end,
+		OnClick = function(self, button)
+			ClearInspectPlayer()
+			NotifyInspect("target")
+			self.UnitGUID = UnitGUID("target")
+			self.ShowRealItems = button == "RightButton"
+		end,
+		OnEvent = function(self, event, ...)
+			if event == "PLAYER_TARGET_CHANGED" then
 				self.Module.UpdateButtonState(self)
-			end,
-			OnClick = function(self, button)
-				ClearInspectPlayer()
-				NotifyInspect("target")
-				self.UnitGUID = UnitGUID("target")
-				self.ShowRealItems = button == "RightButton"
-			end,
-			OnEvent = function(self, event, ...)
-				if event == "PLAYER_TARGET_CHANGED" then
-					self.Module.UpdateButtonState(self)
-				elseif event == "INSPECT_READY" then
-					if self.UnitGUID == ... then
-						self.Module.UpdateEquipment(self)
-					end
+			elseif event == "INSPECT_READY" then
+				if self.UnitGUID == ... then
+					self.Module.UpdateEquipment(self)
 				end
-			end,
-		},
-		Widgets = {
-			{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
-		},
-		UpdateButtonState = function(self)
-			self:SetEnabled(CanInspect("target"))
-		end,
-		UpdateEquipment = function(self)
-			local race, class = addon:GetCurrentSkin()
-			if self.ShowRealItems then
-				for i = 1, 19 do
-					if GetInventoryItemTexture("target", i) then
-						local link = GetInventoryItemLink("target", i)
-						addon:TryOn(link)
-					end
-				end
-			else
-				addon:DressUpSources(C_TransmogCollection.GetInspectSources())
 			end
-			addon:SetSkin(race, class)
 		end,
-	})
+	},
+	Widgets = {
+		{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
+	},
+	UpdateButtonState = function(self)
+		self:SetEnabled(CanInspect("target"))
+	end,
+	UpdateEquipment = function(self)
+		local race, class = addon:GetCurrentSkin()
+		if self.ShowRealItems then
+			for i = 1, 19 do
+				if GetInventoryItemTexture("target", i) then
+					local link = GetInventoryItemLink("target", i)
+					addon:TryOn(link)
+				end
+			end
+		else
+			local playerActor = DressUpFrame.ModelScene:GetPlayerActor()
+			local itemTransmogInfoList = playerActor and playerActor:GetItemTransmogInfoList()
+			addon:DressUpTransmogInfoList(itemTransmogInfoList)
+		end
+		addon:SetSkin(race, class)
+	end,
+})
 
-	local DUF_TARGET = addon:CreateModule("DressUpFrame Target", {
-		CanLoad = function()
-			return type(DressUpFrame) == "table"
+local DUF_TARGET = addon:CreateModule("DressUpFrame Target", {
+	CanLoad = function()
+		return type(DressUpFrame) == "table"
+	end,
+	Events = {
+		"PLAYER_TARGET_CHANGED",
+	},
+	Handlers = {
+		OnLoad = function(self)
+			self.Text = ns.L.TARGET
+			self.TextShort = ns.L.TARGET_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_INSPECT.Widgets[1].Frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
 		end,
-		Events = {
-			"PLAYER_TARGET_CHANGED",
-		},
-		Handlers = {
-			OnLoad = function(self)
-				self.Text = ns.L.TARGET
-				self.TextShort = ns.L.TARGET_SHORT
-				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-				self:SetPoint("RIGHT", DUF_INSPECT.Widgets[1].Frame, "LEFT", 0, 0)
-				hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
-			end,
-			OnShow = function(self)
-				addon.UI.Resize.Update(DressUpFrame, self)
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.Module.UpdateButtonState(self)
+			addon:SetUnit("player")
+			addon:SetSkinForUnit("player")
+		end,
+		OnClick = function(self, button)
+			addon:SetUnit("target")
+			addon:SetSkinForUnit("target")
+		end,
+		OnEvent = function(self, event, ...)
+			if event == "PLAYER_TARGET_CHANGED" then
 				self.Module.UpdateButtonState(self)
-				addon:SetUnit("player")
-				addon:SetSkinForUnit("player")
-			end,
-			OnClick = function(self, button)
-				addon:SetUnit("target")
-				addon:SetSkinForUnit("target")
-			end,
-			OnEvent = function(self, event, ...)
-				if event == "PLAYER_TARGET_CHANGED" then
-					self.Module.UpdateButtonState(self)
-				end
-			end,
-		},
-		Widgets = {
-			{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
-		},
-		UpdateButtonState = function(self)
-			self:SetEnabled(addon:CanSetUnit("target"))
+			end
 		end,
-	})
+	},
+	Widgets = {
+		{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
+	},
+	UpdateButtonState = function(self)
+		self:SetEnabled(addon:CanSetUnit("target"))
+	end,
+})
 
-	local DUF_CUSTOM = false and addon:CreateModule("DressUpFrame Custom", {
-		LibDropDown = LibStub and LibStub("LibDropDown", true),
-		CanLoad = function(self)
-			return self.LibDropDown and type(DressUpFrame) == "table"
+local DUF_CUSTOM = false and addon:CreateModule("DressUpFrame Custom", {
+	LibDropDown = LibStub and LibStub("LibDropDown", true),
+	CanLoad = function(self)
+		return self.LibDropDown and type(DressUpFrame) == "table"
+	end,
+	Handlers = {
+		OnLoad = function(self)
+			self.Text = ns.L.CUSTOM
+			self.TextShort = ns.L.CUSTOM_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_TARGET.Widgets[1].Frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+			self.Module.ActiveGender = self.Module.Genders[1]
+			self.Module.ActiveRace = self.Module.Races[1]
+			self.Module.CreateMenu(self)
 		end,
-		Handlers = {
-			OnLoad = function(self)
-				self.Text = ns.L.CUSTOM
-				self.TextShort = ns.L.CUSTOM_SHORT
-				self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-				self:SetPoint("RIGHT", DUF_TARGET.Widgets[1].Frame, "LEFT", 0, 0)
-				hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
-				self.Module.ActiveGender = self.Module.Genders[1]
-				self.Module.ActiveRace = self.Module.Races[1]
-				self.Module.CreateMenu(self)
-			end,
-			OnShow = function(self)
-				addon.UI.Resize.Update(DressUpFrame, self)
-			end,
-			OnClick = function(self, button)
-				self.Module.ToggleMenu(self)
-			end,
-		},
-		Widgets = {
-			{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
-		},
-		Genders = {
-			{ id = 2, gender = 0, text = "Male", atlasGender = "male" },
-			{ id = 3, gender = 1, text = "Female", atlasGender = "female" },
-		},
-		Races = {
-			-- Alliance Races
-			{ faction = 1, id = "Draenei", race = 11, text = "Draenei", atlasRace = "draenei" },
-			{ faction = 1, id = "Dwarf", race = 3, text = "Dwarf", atlasRace = "dwarf" },
-			{ faction = 1, id = "Gnome", race = 7, text = "Gnome", atlasRace = "gnome" },
-			{ faction = 1, id = "Human", race = 1, text = "Human", atlasRace = "human" },
-			{ faction = 1, id = "NightElf", race = 4, text = "Night Elf", atlasRace = "nightelf" },
-			{ faction = 1, id = "Worgen", race = 22, text = "Worgen", atlasRace = "worgen" },
-			-- Alliance Allied Races
-			{ faction = 1, id = "DarkIronDwarf", race = 34, text = "Dark Iron Dwarf", atlasRace = "darkirondwarf", allied = 1 },
-			{ faction = 1, id = "KulTiran", race = 32, text = "Kul Tiran", atlasRace = "kultiran", allied = 1 },
-			{ faction = 1, id = "LightforgedDraenei", race = 30, text = "Lightforged Draenei", atlasRace = "lightforged", allied = 1 },
-			{ faction = 1, id = "VoidElf", race = 29, text = "Void Elf", atlasRace = "voidelf", allied = 1 },
-			{ faction = 1, id = "Mechagnome", race = 37, text = "Mechagnome", atlasRace = "mechagnome", allied = 1 },
-			-- Horde Races
-			{ faction = 2, id = "BloodElf", race = 10, text = "Blood Elf", atlasRace = "bloodelf" },
-			{ faction = 2, id = "Goblin", race = 9, text = "Goblin", atlasRace = "goblin" },
-			{ faction = 2, id = "Orc", race = 2, text = "Orc", atlasRace = "orc" },
-			{ faction = 2, id = "Tauren", race = 6, text = "Tauren", atlasRace = "tauren" },
-			{ faction = 2, id = "Troll", race = 8, text = "Troll", atlasRace = "troll" },
-			{ faction = 2, id = "Scourge", race = 5, text = "Undead", atlasRace = "undead" },
-			-- Horde Allied Races
-			{ faction = 2, id = "HighmountainTauren", race = 28, text = "Highmountain Tauren", atlasRace = "highmountain", allied = 2 },
-			{ faction = 2, id = "MagharOrc", race = 36, text = "Mag'har Orc", atlasRace = "magharorc", allied = 2 },
-			{ faction = 2, id = "Nightborne", race = 27, text = "Nightborne", atlasRace = "nightborne", allied = 2 },
-			{ faction = 2, id = "ZandalariTroll", race = 31, text = "Zandalari Troll", atlasRace = "zandalari", allied = 2 },
-			{ faction = 3, id = "Vulpera", race = 35, text = "Vulpera", atlasRace = "vulpera", allied = 2 },
-			-- Neutral
-			{ faction = 3, id = "Pandaren", race = 24, text = "Pandaren", atlasRace = "pandaren" },
-			-- Other Races
-			-- { faction = 3, id = "FelOrc", race = 12, text = "Fel Orc", allied = 3 },
-			-- { faction = 3, id = "Naga_", race = 13, text = "Naga", allied = 3 },
-			-- { faction = 3, id = "Broken", race = 14, text = "Broken", allied = 3 },
-			-- { faction = 3, id = "Skeleton", race = 15, text = "Skeleton", allied = 3 },
-			-- { faction = 3, id = "Vrykul", race = 16, text = "Vrykul", allied = 3 },
-			-- { faction = 3, id = "Tuskarr", race = 17, text = "Tuskarr", allied = 3 },
-			-- { faction = 3, id = "ForestTroll", race = 18, text = "Forest Troll", allied = 3 },
-			-- { faction = 3, id = "Taunka", race = 19, text = "Taunka", allied = 3 },
-			-- { faction = 3, id = "NorthrendSkeleton", race = 20, text = "Northrend Skeleton", allied = 3 },
-			-- { faction = 3, id = "IceTroll", race = 21, text = "Ice Troll", allied = 3 },
-			-- { faction = 3, id = "ThinHuman", race = 33, text = "Thin Human", allied = 3 },
-		},
-		ActiveGender = nil,
-		ActiveRace = nil,
-		CreateMenu = function(self)
-			local function SetGender(_, _, genderInfo)
-				return self.Module.SetGender(self, genderInfo)
-			end
-			local function SetRace(_, _, raceInfo)
-				return self.Module.SetRace(self, raceInfo)
-			end
-			local Menu = self.Module.LibDropDown:NewButton(self, addonName .. "DressUpFrameDropDownMenuButton")
-			Menu:SetStyle("MENU")
-			Menu:SetAnchor("BOTTOMLEFT", self, "TOPLEFT", 10, 10)
-			local genderOptions = {}
-			local raceOptions = {}
-			local raceSubMenuOptions
-			for i = 1, #self.Module.Genders do
-				local genderInfo = self.Module.Genders[i]
-				local genderOption = {
-					atlas = GetAtlasInfo("charactercreate-gendericon-" .. genderInfo.atlasGender) and "charactercreate-gendericon-" .. genderInfo.atlasGender or "AlliedRace-UnlockingFrame-" .. genderInfo.atlasGender, -- TODO: 9.0
-					text = genderInfo.text,
-					args = { genderInfo },
-					func = SetGender,
-					keepShown = true,
-				}
-				genderOptions[#genderOptions + 1] = genderOption
-			end
-			for i = 1, #self.Module.Races do
-				local prevRaceInfo = self.Module.Races[i - 1]
-				local raceInfo = self.Module.Races[i]
-				if not prevRaceInfo or (raceInfo.faction ~= prevRaceInfo.faction) then
-					raceOptions[#raceOptions + 1] = {
-						isTitle = true,
-						text = raceInfo.faction == 1 and "Alliance" or (raceInfo.faction == 2 and "Horde" or "Neutral"),
-					}
-				end
-				if prevRaceInfo and raceInfo.allied ~= prevRaceInfo.allied then
-					if not prevRaceInfo.allied then
-						raceSubMenuOptions = {}
-						raceOptions[#raceOptions + 1] = {
-							text = raceInfo.allied == 1 and "Alliance Allied Races" or (raceInfo.allied == 2 and "Horde Allied Races" or "Other Races"),
-							menu = raceSubMenuOptions,
-							keepShown = true,
-						}
-					elseif not raceInfo.allied then
-						raceSubMenuOptions = nil
-					end
-				end
-				local raceOption = {
-					atlas = "raceicon-" .. raceInfo.atlasRace .. "-male",
-					text = raceInfo.text,
-					args = { raceInfo },
-					func = SetRace,
-					keepShown = true,
-				}
-				if raceSubMenuOptions then
-					raceSubMenuOptions[#raceSubMenuOptions + 1] = raceOption
-				else
-					raceOptions[#raceOptions + 1] = raceOption
-				end
-			end
-			Menu:Add({
-				isTitle = true,
-				text = "Gender",
-			})
-			for i = 1, #genderOptions do
-				Menu:Add(genderOptions[i])
-			end
-			Menu:Add({
-				text = "Race",
-				menu = raceOptions,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+		end,
+		OnClick = function(self, button)
+			self.Module.ToggleMenu(self)
+		end,
+	},
+	Widgets = {
+		{ type = "Button", parent = "DressUpFrameResetButton", template = "UIPanelButtonTemplate" },
+	},
+	Genders = {
+		{ id = 2, gender = 0, text = "Male", atlasGender = "male" },
+		{ id = 3, gender = 1, text = "Female", atlasGender = "female" },
+	},
+	Races = {
+		-- Alliance Races
+		{ faction = 1, id = "Draenei", race = 11, text = "Draenei", atlasRace = "draenei" },
+		{ faction = 1, id = "Dwarf", race = 3, text = "Dwarf", atlasRace = "dwarf" },
+		{ faction = 1, id = "Gnome", race = 7, text = "Gnome", atlasRace = "gnome" },
+		{ faction = 1, id = "Human", race = 1, text = "Human", atlasRace = "human" },
+		{ faction = 1, id = "NightElf", race = 4, text = "Night Elf", atlasRace = "nightelf" },
+		{ faction = 1, id = "Worgen", race = 22, text = "Worgen", atlasRace = "worgen" },
+		-- Alliance Allied Races
+		{ faction = 1, id = "DarkIronDwarf", race = 34, text = "Dark Iron Dwarf", atlasRace = "darkirondwarf", allied = 1 },
+		{ faction = 1, id = "KulTiran", race = 32, text = "Kul Tiran", atlasRace = "kultiran", allied = 1 },
+		{ faction = 1, id = "LightforgedDraenei", race = 30, text = "Lightforged Draenei", atlasRace = "lightforged", allied = 1 },
+		{ faction = 1, id = "VoidElf", race = 29, text = "Void Elf", atlasRace = "voidelf", allied = 1 },
+		{ faction = 1, id = "Mechagnome", race = 37, text = "Mechagnome", atlasRace = "mechagnome", allied = 1 },
+		-- Horde Races
+		{ faction = 2, id = "BloodElf", race = 10, text = "Blood Elf", atlasRace = "bloodelf" },
+		{ faction = 2, id = "Goblin", race = 9, text = "Goblin", atlasRace = "goblin" },
+		{ faction = 2, id = "Orc", race = 2, text = "Orc", atlasRace = "orc" },
+		{ faction = 2, id = "Tauren", race = 6, text = "Tauren", atlasRace = "tauren" },
+		{ faction = 2, id = "Troll", race = 8, text = "Troll", atlasRace = "troll" },
+		{ faction = 2, id = "Scourge", race = 5, text = "Undead", atlasRace = "undead" },
+		-- Horde Allied Races
+		{ faction = 2, id = "HighmountainTauren", race = 28, text = "Highmountain Tauren", atlasRace = "highmountain", allied = 2 },
+		{ faction = 2, id = "MagharOrc", race = 36, text = "Mag'har Orc", atlasRace = "magharorc", allied = 2 },
+		{ faction = 2, id = "Nightborne", race = 27, text = "Nightborne", atlasRace = "nightborne", allied = 2 },
+		{ faction = 2, id = "ZandalariTroll", race = 31, text = "Zandalari Troll", atlasRace = "zandalari", allied = 2 },
+		{ faction = 3, id = "Vulpera", race = 35, text = "Vulpera", atlasRace = "vulpera", allied = 2 },
+		-- Neutral
+		{ faction = 3, id = "Pandaren", race = 24, text = "Pandaren", atlasRace = "pandaren" },
+		-- Other Races
+		-- { faction = 3, id = "FelOrc", race = 12, text = "Fel Orc", allied = 3 },
+		-- { faction = 3, id = "Naga_", race = 13, text = "Naga", allied = 3 },
+		-- { faction = 3, id = "Broken", race = 14, text = "Broken", allied = 3 },
+		-- { faction = 3, id = "Skeleton", race = 15, text = "Skeleton", allied = 3 },
+		-- { faction = 3, id = "Vrykul", race = 16, text = "Vrykul", allied = 3 },
+		-- { faction = 3, id = "Tuskarr", race = 17, text = "Tuskarr", allied = 3 },
+		-- { faction = 3, id = "ForestTroll", race = 18, text = "Forest Troll", allied = 3 },
+		-- { faction = 3, id = "Taunka", race = 19, text = "Taunka", allied = 3 },
+		-- { faction = 3, id = "NorthrendSkeleton", race = 20, text = "Northrend Skeleton", allied = 3 },
+		-- { faction = 3, id = "IceTroll", race = 21, text = "Ice Troll", allied = 3 },
+		-- { faction = 3, id = "ThinHuman", race = 33, text = "Thin Human", allied = 3 },
+	},
+	ActiveGender = nil,
+	ActiveRace = nil,
+	CreateMenu = function(self)
+		local function SetGender(_, _, genderInfo)
+			return self.Module.SetGender(self, genderInfo)
+		end
+		local function SetRace(_, _, raceInfo)
+			return self.Module.SetRace(self, raceInfo)
+		end
+		local Menu = self.Module.LibDropDown:NewButton(self, addonName .. "DressUpFrameDropDownMenuButton")
+		Menu:SetStyle("MENU")
+		Menu:SetAnchor("BOTTOMLEFT", self, "TOPLEFT", 10, 10)
+		local genderOptions = {}
+		local raceOptions = {}
+		local raceSubMenuOptions
+		for i = 1, #self.Module.Genders do
+			local genderInfo = self.Module.Genders[i]
+			local genderOption = {
+				atlas = GetAtlasInfo("charactercreate-gendericon-" .. genderInfo.atlasGender) and "charactercreate-gendericon-" .. genderInfo.atlasGender or "AlliedRace-UnlockingFrame-" .. genderInfo.atlasGender, -- TODO: 9.0
+				text = genderInfo.text,
+				args = { genderInfo },
+				func = SetGender,
 				keepShown = true,
-			})
-			Menu:Add({
-				text = "Close",
-			})
-			self.Module.Menu = Menu
-		end,
-		SetGender = function(self, genderInfo)
-			self.Module.ActiveGender = genderInfo
-			addon:SetCustomGender(genderInfo)
-		end,
-		SetRace = function(self, raceInfo)
-			self.Module.ActiveRace = raceInfo
-			addon:SetCustomRace(raceInfo)
-		end,
-		ToggleMenu = function(self)
-			self.Module.Menu:Toggle()
-		end,
-	})
+			}
+			genderOptions[#genderOptions + 1] = genderOption
+		end
+		for i = 1, #self.Module.Races do
+			local prevRaceInfo = self.Module.Races[i - 1]
+			local raceInfo = self.Module.Races[i]
+			if not prevRaceInfo or (raceInfo.faction ~= prevRaceInfo.faction) then
+				raceOptions[#raceOptions + 1] = {
+					isTitle = true,
+					text = raceInfo.faction == 1 and "Alliance" or (raceInfo.faction == 2 and "Horde" or "Neutral"),
+				}
+			end
+			if prevRaceInfo and raceInfo.allied ~= prevRaceInfo.allied then
+				if not prevRaceInfo.allied then
+					raceSubMenuOptions = {}
+					raceOptions[#raceOptions + 1] = {
+						text = raceInfo.allied == 1 and "Alliance Allied Races" or (raceInfo.allied == 2 and "Horde Allied Races" or "Other Races"),
+						menu = raceSubMenuOptions,
+						keepShown = true,
+					}
+				elseif not raceInfo.allied then
+					raceSubMenuOptions = nil
+				end
+			end
+			local raceOption = {
+				atlas = "raceicon-" .. raceInfo.atlasRace .. "-male",
+				text = raceInfo.text,
+				args = { raceInfo },
+				func = SetRace,
+				keepShown = true,
+			}
+			if raceSubMenuOptions then
+				raceSubMenuOptions[#raceSubMenuOptions + 1] = raceOption
+			else
+				raceOptions[#raceOptions + 1] = raceOption
+			end
+		end
+		Menu:Add({
+			isTitle = true,
+			text = "Gender",
+		})
+		for i = 1, #genderOptions do
+			Menu:Add(genderOptions[i])
+		end
+		Menu:Add({
+			text = "Race",
+			menu = raceOptions,
+			keepShown = true,
+		})
+		Menu:Add({
+			text = "Close",
+		})
+		self.Module.Menu = Menu
+	end,
+	SetGender = function(self, genderInfo)
+		self.Module.ActiveGender = genderInfo
+		addon:SetCustomGender(genderInfo)
+	end,
+	SetRace = function(self, raceInfo)
+		self.Module.ActiveRace = raceInfo
+		addon:SetCustomRace(raceInfo)
+	end,
+	ToggleMenu = function(self)
+		self.Module.Menu:Toggle()
+	end,
+})
 
-	addon:SetScript("OnEvent", function(addon, event, ...) addon[event](addon, event, ...) end)
-	addon:RegisterEvent("ADDON_LOADED")
+addon:CreateModule("DressUpFrame Adjustments", {
+	CanLoad = function()
+		return type(DressUpFrame) == "table" and type(DressUpFrame.LinkButton) == "table"
+	end,
+	Handlers = {
+		OnLoad = function(self)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() self.Module.UpdateButtonState(self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.Module.UpdateButtonState(self)
+		end,
+	},
+	Widgets = {
+		{ type = "Button", parent = "DressUpFrame" },
+	},
+	UpdateButtonState = function(self)
+		local frame = DUF_TARGET.Widgets[1].Frame
+		local button = DressUpFrame.LinkButton
+		button:ClearAllPoints()
+		button:SetPoint("RIGHT", frame, "LEFT", 0, 0)
+		button:SetPoint("BOTTOMLEFT", DressUpFrame, "BOTTOMLEFT", 4, 4)
+		button:SetText(addon.UI.Resize.IsExpanded(DressUpFrame) and _G.LINK_TRANSMOG_OUTFIT or _G.COMMUNITIES_INVITE_MANAGER_COLUMN_TITLE_LINK)
+	end,
+})
 
-end
+addon:SetScript("OnEvent", function(addon, event, ...) addon[event](addon, event, ...) end)
+addon:RegisterEvent("ADDON_LOADED")
