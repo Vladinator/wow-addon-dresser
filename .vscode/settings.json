@@ -1,0 +1,14 @@
+{
+    "Lua.diagnostics.globals": [
+        "CAMERA_MODIFICATION_TYPE_DISCARD",
+        "CAMERA_TRANSITION_TYPE_IMMEDIATE",
+        "ColorPickerFrame",
+        "DressUpFrame",
+        "GetCursorPosition",
+        "HIGHLIGHT_FONT_COLOR",
+        "OpacitySliderFrame",
+        "SetDressUpBackground",
+        "SideDressUpFrame",
+        "UIMenus"
+    ]
+}

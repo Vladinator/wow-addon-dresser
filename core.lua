@@ -734,6 +734,7 @@ local DUF_UNDRESS = addon:CreateModule("DressUpFrame Undress", {
 	},
 })
 
+--[[
 local DUF_INSPECT = addon:CreateModule("DressUpFrame Inspect", {
 	CanLoad = function()
 		return type(DressUpFrame) == "table"
@@ -793,6 +794,7 @@ local DUF_INSPECT = addon:CreateModule("DressUpFrame Inspect", {
 		addon:SetSkin(race, class)
 	end,
 })
+--]]
 
 local DUF_TARGET = addon:CreateModule("DressUpFrame Target", {
 	CanLoad = function()
@@ -806,7 +808,7 @@ local DUF_TARGET = addon:CreateModule("DressUpFrame Target", {
 			self.Text = ns.L.TARGET
 			self.TextShort = ns.L.TARGET_SHORT
 			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-			self:SetPoint("RIGHT", DUF_INSPECT.Widgets[1].Frame, "LEFT", 0, 0)
+			self:SetPoint("RIGHT", DUF_UNDRESS.Widgets[1].Frame, "LEFT", 0, 0)
 			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
 		end,
 		OnShow = function(self)
