@@ -1,9 +1,9 @@
-﻿## Interface: 100100
+﻿## Interface: 100105
 ## IconAtlas: poi-transmogrifier
 ## Title: Dresser
 ## Notes: Adds functionality to the dressing room!
 ## Author: Vladinator
-## Version: 10.1.0.230503
+## Version: 10.1.5.230919
 ## SavedVariables: DresserDB
 ## X-Curse-Project-ID: 7296
 ## X-WoWI-ID: 9381
