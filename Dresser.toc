@@ -7,9 +7,5 @@
 ## SavedVariables: DresserDB
 ## X-Curse-Project-ID: 7296
 ## X-WoWI-ID: 9381
-Libs\LibStub\LibStub.lua
-Libs\LibDropDown\embed.xml
-db_creaturedisplays.lua
-db_creaturemodels.lua
 locale.lua
 core.lua

@@ -1,10 +1,10 @@
-local _, ns = ...
+---@class DresserNS
+local ns = select(2, ...)
 
 local locale = GetLocale()
-local L = setmetatable({}, { __index = function(self, k) return "[" .. locale .. "] " .. k end })
+local L = setmetatable({}, { __index = function(self, k) return format("[%s] %s", locale, k) end })
 ns.L = L
 
--- enGB/enUS
 L.UNDRESS = "Undress"
 L.UNDRESS_SHORT = "Und"
 L.INSPECT = "Inspect"

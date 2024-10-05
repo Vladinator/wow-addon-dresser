@@ -1,7 +1,507 @@
-if WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE then return end
+---@class DresserNS
+local ns = select(2, ...)
 
-local addonName, ns = ...
+local L = ns.L
+
+---@class DresserFrame : Frame
 local addon = CreateFrame("Frame")
+
+---@class DresserModuleBase
+---@field public canLoad fun(self: DresserModule): boolean?
+---@field public events? WowEvent[]
+---@field public widgets? DresserModuleWidgetBase[]
+---@field public handlers? table<ScriptFrame, fun(self: DresserModuleFrame, ...)>
+---@field public UpdateButtonState? fun(self: DresserModuleFrame)
+---@field public UpdateEquipment? fun(self: DresserModuleFrame)
+
+---@class DresserModule : DresserModuleBase
+---@field public loaded boolean
+---@field public name string
+---@field public widgets DresserModuleWidget[]
+---@field public handlers table<ScriptFrame, fun(self: DresserModuleFrame, ...)>
+
+---@generic T
+---@class DresserModuleWidgetBase
+---@field public type `T` | FrameType
+---@field public parent? string|Region|fun():Region?
+---@field public template? string
+---@field public frame? DresserModuleFrame
+
+---@class DresserModuleWidget : DresserModuleWidgetBase
+---@field public frame DresserModuleFrame
+
+---@class DresserModuleFrame : Button
+---@field public text? string
+---@field public textShort? string
+---@field public size? number
+---@field public sizeShort? number
+---@field public args? table
+
+---@type DresserModule[]
+addon.modules = {}
+
+---@param name string
+---@param module DresserModuleBase
+---@return DresserModule module
+function addon:CreateModule(name, module)
+	---@type DresserModule
+	---@diagnostic disable-next-line: assign-type-mismatch
+	local temp = module
+	self.modules[#self.modules + 1] = temp
+	temp.loaded = false
+	temp.name = name
+	temp.widgets = module.widgets or {}
+	temp.handlers = module.handlers or {}
+	self:LoadModule(temp)
+	return temp
+end
+
+---@param module DresserModule
+---@return boolean? loaded
+function addon:LoadModule(module)
+	if module.loaded then
+		return
+	end
+	if module.canLoad then
+		if not module:canLoad() then
+			return false
+		end
+	end
+	return self:InitModule(module)
+end
+
+---@param module DresserModule
+---@return boolean? initialized
+function addon:InitModule(module)
+	if module.loaded then
+		return
+	end
+	module.loaded = true
+	for _, widget in pairs(module.widgets) do
+		local parent = widget.parent
+		if type(parent) == "string" then
+			parent = _G[parent] ---@type Region?
+		elseif type(parent) == "function" then
+			parent = parent() ---@type Region?
+		end
+		---@class DresserModuleFrame
+		local frame = CreateFrame(widget.type, nil, parent, widget.template)
+		frame.module = module
+		frame.widget = widget
+		widget.frame = frame
+		for handler, script in pairs(module.handlers) do
+			if handler == "OnLoad" then
+				script(frame)
+			else
+				frame:SetScript(handler, script)
+			end
+		end
+		if module.events then
+			for _, event in pairs(module.events) do
+				frame:RegisterEvent(event)
+			end
+		end
+	end
+	return true
+end
+
+---@param event WowEvent
+---@param ... any
+function addon:OnEvent(event, ...)
+	if event == "ADDON_LOADED" then
+		for _, module in ipairs(self.modules) do
+			self:LoadModule(module)
+		end
+	end
+end
+
+---@return fun(): ModelScene?
+function addon:EnumerateModelScenes()
+	---@type (ModelScene|false)[]
+	local temp = {
+		SideDressUpFrame and SideDressUpFrame:IsShown() and SideDressUpFrame.ModelScene or false,
+		DressUpFrame and DressUpFrame:IsShown() and DressUpFrame.ModelScene or false,
+	}
+	local i = 0
+	local current = false ---@type (ModelScene|false)?
+	return function()
+		repeat
+			i = i + 1
+			current = temp[i]
+		until current ~= false
+		return current ---@type ModelScene?
+	end
+end
+
+---@param includeInvisible? boolean
+---@return fun(): ModelSceneActor?
+function addon:EnumerateModelSceneActors(includeInvisible)
+	---@type thread?
+	local co = coroutine.create(function()
+		for modelScene in self:EnumerateModelScenes() do
+			for i = 1, modelScene:GetNumActors() do
+				local actor = modelScene:GetActorAtIndex(i)
+				if actor and (includeInvisible or (actor:IsShown() and actor:IsVisible() and actor:IsLoaded() and actor:IsGeoReady())) then
+					coroutine.yield(actor)
+				end
+			end
+		end
+	end)
+	return function()
+		if not co then
+			return
+		end
+		---@type _, ModelSceneActor?
+		local _, actor = coroutine.resume(co)
+		if not actor then
+			co = nil
+		end
+		return actor
+	end
+end
+
+--[[
+
+---@param slot number
+function addon:UndressSlot(slot)
+	for actor in self:EnumerateModelSceneActors() do
+		actor:UndressSlot(slot)
+	end
+end
+
+--]]
+
+---@param ... number
+function addon:UndressSlots(...)
+	local slots = {...}
+	for actor in self:EnumerateModelSceneActors() do
+		for _, slot in ipairs(slots) do
+			actor:UndressSlot(slot)
+		end
+	end
+end
+
+---@param includeWeapons? boolean
+function addon:Undress(includeWeapons)
+	for actor in self:EnumerateModelSceneActors() do
+		actor:Undress(includeWeapons)
+	end
+end
+
+function addon:Reset()
+	-- TODO
+end
+
+---@param unit UnitToken
+---@param sheatheWeapons? boolean
+---@param autoDress? boolean
+---@param hideWeapons? boolean
+---@param usePlayerNativeForm? boolean
+---@param holdBowString? boolean
+function addon:SetUnit(unit, sheatheWeapons, autoDress, hideWeapons, usePlayerNativeForm, holdBowString)
+	for actor in self:EnumerateModelSceneActors() do
+		actor:SetModelByUnit(unit, sheatheWeapons, autoDress, hideWeapons, usePlayerNativeForm, holdBowString)
+		-- TODO: adjust the theme, the camera, etc. for the actor to match the unit race?
+	end
+end
+
+--[[
+
+---@param itemLinkOrItemModifiedAppearanceID string
+---@param handSlotName? string
+---@param spellEnchantmentID? number
+function addon:TryOn(itemLinkOrItemModifiedAppearanceID, handSlotName, spellEnchantmentID)
+	for actor in self:EnumerateModelSceneActors() do
+		actor:TryOn(itemLinkOrItemModifiedAppearanceID, handSlotName, spellEnchantmentID)
+	end
+end
+
+---@param transmogInfo ItemTransmogInfo
+---@param inventorySlots? number
+---@param ignoreChildItems? boolean
+function addon:TryOnTransmog(transmogInfo, inventorySlots, ignoreChildItems)
+	for actor in self:EnumerateModelSceneActors() do
+		actor:SetItemTransmogInfo(transmogInfo, inventorySlots, ignoreChildItems)
+	end
+end
+
+---@param transmogInfoList ItemTransmogInfo[]
+---@param inventorySlots? number
+---@param ignoreChildItems? boolean
+function addon:TryOnTransmogList(transmogInfoList, inventorySlots, ignoreChildItems)
+	for actor in self:EnumerateModelSceneActors() do
+		for _, transmogInfo in ipairs(transmogInfoList) do
+			actor:SetItemTransmogInfo(transmogInfo, inventorySlots, ignoreChildItems)
+		end
+	end
+end
+
+--]]
+
+---@class DresserUserInterface
+local UI do
+
+	UI = {}
+	addon.UI = UI
+
+	UI.Resize = {}
+	UI.Undress = {}
+	UI.Reset = {}
+
+	---@class DresserParentPolyfill
+	---@field public MaxMinButtonFrame MaxMinButtonFramePolyfill
+
+	---@class MaxMinButtonFramePolyfill
+	---@field public cvar string
+
+	---@param parent DresserParentPolyfill
+	function UI.Resize.IsExpanded(parent)
+		return GetCVar(parent.MaxMinButtonFrame.cvar) == "0"
+	end
+
+	---@param parent DresserParentPolyfill
+	---@param frame DresserModuleFrame
+	function UI.Resize.Update(parent, frame)
+		if UI.Resize.IsExpanded(parent) then
+			frame:SetWidth(frame.size or 60)
+			frame:SetText(frame.text or frame.textShort)
+		else
+			frame:SetWidth(frame.sizeShort or (60/1.5))
+			frame:SetText(frame.textShort or frame.text)
+		end
+	end
+
+	---@param frame DresserModuleFrame
+	function UI.Undress.Setup(frame)
+		frame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	end
+
+	---@param frame DresserModuleFrame
+	---@param button MouseAction
+	function UI.Undress.Click(frame, button)
+		if button == "RightButton" then
+			addon:UndressSlots(INVSLOT_HEAD, INVSLOT_BACK, INVSLOT_TABARD)
+		else
+			addon:Undress()
+		end
+	end
+
+	---@param frame DresserModuleFrame
+	function UI.Reset.Setup(frame)
+		frame:HookScript("OnClick", function(...) UI.Reset.Click(...) end)
+	end
+
+	---@param frame DresserModuleFrame
+	---@param button MouseAction
+	function UI.Reset.Click(frame, button)
+		addon:Reset()
+	end
+
+end
+
+local SDUF_UNDRESS = addon:CreateModule("SideDressUpFrame Undress", {
+	canLoad = function()
+		return type(SideDressUpFrame) == "table" and type(SideDressUpFrame.ResetButton) == "table"
+	end,
+	handlers = {
+		OnLoad = function(self)
+			self:SetText(L.UNDRESS)
+			self:SetSize(SideDressUpFrame.ResetButton:GetSize())
+			self:SetPoint("BOTTOM", SideDressUpFrame.ResetButton, "TOP", 0, 0)
+			SideDressUpFrame.ModelScene:SetPoint("BOTTOMRIGHT", -11, 40 + self:GetHeight() - 4)
+			addon.UI.Undress.Setup(self)
+			addon.UI.Reset.Setup(SideDressUpFrame.ResetButton)
+		end,
+		OnClick = function(self, button)
+			addon.UI.Undress.Click(self, button)
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = "SideDressUpFrame", template = "UIPanelButtonTemplate" },
+	},
+})
+
+local DUF_UNDRESS = addon:CreateModule("DressUpFrame Undress", {
+	canLoad = function()
+		return type(DressUpFrame) == "table" and type(DressUpFrame.ResetButton) == "table"
+	end,
+	handlers = {
+		OnLoad = function(self)
+			self.text = L.UNDRESS
+			self.textShort = L.UNDRESS_SHORT
+			self:SetPoint("RIGHT", DressUpFrame.ResetButton, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+			addon.UI.Undress.Setup(self)
+			addon.UI.Reset.Setup(DressUpFrame.ResetButton)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+		end,
+		OnClick = function(self, button)
+			addon.UI.Undress.Click(self, button)
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = function() return DressUpFrame.ResetButton end, template = "UIPanelButtonTemplate" },
+	},
+})
+
+--[[
+local DUF_INSPECT = addon:CreateModule("DressUpFrame Inspect", {
+	canLoad = function()
+		return type(DressUpFrame) == "table"
+	end,
+	events = {
+		"PLAYER_TARGET_CHANGED",
+		"INSPECT_READY",
+	},
+	handlers = {
+		OnLoad = function(self)
+			self.text = L.INSPECT
+			self.textShort = L.INSPECT_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_UNDRESS.widgets[1].frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.module.UpdateButtonState(self)
+		end,
+		OnClick = function(self, button)
+			ClearInspectPlayer()
+			NotifyInspect("target")
+			self.args = self.args or {}
+			self.args.guid = UnitGUID("target")
+			self.args.real = button == "RightButton"
+		end,
+		OnEvent = function(self, event, ...)
+			if event == "PLAYER_TARGET_CHANGED" then
+				self.module.UpdateButtonState(self)
+			elseif event == "INSPECT_READY" then
+				if self.args and self.args.guid == ... then
+					self.module.UpdateEquipment(self)
+				end
+			end
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = function() return DressUpFrame.ResetButton end, template = "UIPanelButtonTemplate" },
+	},
+	UpdateButtonState = function(self)
+		self:SetEnabled(CanInspect("target"))
+	end,
+	UpdateEquipment = function(self)
+		local race, class = addon:GetSkin()
+		if self.args and self.args.real then
+			for i = 1, 19 do
+				if GetInventoryItemTexture("target", i) then
+					local link = GetInventoryItemLink("target", i)
+					addon:TryOnLink(link)
+				end
+			end
+		else
+			local playerActor = DressUpFrame.ModelScene:GetPlayerActor() ---@type ModelSceneActor
+			local itemTransmogInfoList = playerActor and playerActor:GetItemTransmogInfoList()
+			addon:TryOnTransmogList(itemTransmogInfoList)
+		end
+		addon:SetSkin(race, class)
+	end,
+})
+--]]
+
+local DUF_TARGET = addon:CreateModule("DressUpFrame Target", {
+	canLoad = function()
+		return type(DressUpFrame) == "table" and type(DressUpFrame.ResetButton) == "table"
+	end,
+	events = {
+		"PLAYER_TARGET_CHANGED",
+	},
+	handlers = {
+		OnLoad = function(self)
+			self.text = L.TARGET
+			self.textShort = L.TARGET_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_UNDRESS.widgets[1].frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.module.UpdateButtonState(self)
+			addon:SetUnit("player")
+		end,
+		OnClick = function(self, button)
+			addon:SetUnit("target")
+		end,
+		OnEvent = function(self, event, ...)
+			if event == "PLAYER_TARGET_CHANGED" then
+				self.module.UpdateButtonState(self)
+			end
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = function() return DressUpFrame.ResetButton end, template = "UIPanelButtonTemplate" },
+	},
+	UpdateButtonState = function(self)
+		self:SetEnabled(UnitIsPlayer("target"))
+	end,
+})
+
+--[[
+local DUF_CUSTOM = addon:CreateModule("DressUpFrame Custom", {
+	canLoad = function()
+		return type(DressUpFrame) == "table" and type(DressUpFrame.ResetButton) == "table"
+	end,
+	handlers = {
+		OnLoad = function(self)
+			self.text = L.CUSTOM
+			self.textShort = L.CUSTOM_SHORT
+			self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+			self:SetPoint("RIGHT", DUF_TARGET.widgets[1].frame, "LEFT", 0, 0)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() addon.UI.Resize.Update(DressUpFrame, self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+		end,
+		OnClick = function(self, button)
+			print ("CUSTOM-CLICK", button, "") -- DEBUG
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = function() return DressUpFrame.ResetButton end, template = "UIPanelButtonTemplate" },
+	},
+})
+--]]
+
+addon:CreateModule("DressUpFrame Adjustments", {
+	canLoad = function()
+		return type(DressUpFrame) == "table" and type(DressUpFrame.LinkButton) == "table"
+	end,
+	handlers = {
+		OnLoad = function(self)
+			hooksecurefunc(DressUpFrame, "SetSize", function() C_Timer.After(0.01, function() self.module.UpdateButtonState(self) end) end)
+		end,
+		OnShow = function(self)
+			addon.UI.Resize.Update(DressUpFrame, self)
+			self.module.UpdateButtonState(self)
+		end,
+	},
+	widgets = {
+		{ type = "Button", parent = "DressUpFrame" },
+	},
+	UpdateButtonState = function(self)
+		local frame = DUF_TARGET.widgets[1].frame
+		local button = DressUpFrame.LinkButton
+		button:ClearAllPoints()
+		button:SetPoint("RIGHT", frame, "LEFT", 0, 0)
+		button:SetPoint("BOTTOMLEFT", DressUpFrame, "BOTTOMLEFT", 4, 4)
+		button:SetText(addon.UI.Resize.IsExpanded(DressUpFrame) and LINK_TRANSMOG_OUTFIT or COMMUNITIES_INVITE_MANAGER_COLUMN_TITLE_LINK)
+	end,
+})
+
+addon:RegisterEvent("ADDON_LOADED")
+addon:SetScript("OnEvent", addon.OnEvent)
+
+--[=[
 
 -- addon:CreateModule(name:string, module:Module):Module
 -- addon:GetModule(name:string):Module
@@ -1025,3 +1525,5 @@ addon:CreateModule("DressUpFrame Adjustments", {
 
 addon:SetScript("OnEvent", function(addon, event, ...) addon[event](addon, event, ...) end)
 addon:RegisterEvent("ADDON_LOADED")
+
+]=]
